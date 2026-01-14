@@ -1,0 +1,141 @@
+<?php
+session_start();
+
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'admin') {
+    header("Location: login.php");
+    exit();
+}
+
+include('../config/db_connection.php');
+$lecturer_id = $_SESSION['user_id'];
+
+$query = "SELECT username FROM users WHERE id = ?";
+$stmt = $conn->prepare($query);
+
+if (!$stmt) {
+    die("Error preparing the query: " . $conn->error);
+}
+
+$stmt->bind_param("i", $admin_id);
+$stmt->execute();
+$stmt->bind_result($admin_username);
+$stmt->fetch();
+$stmt->close();
+
+// Fetch lessons 
+$query = "SELECT lessons.*, users.username AS lecturer_name 
+          FROM lessons 
+          JOIN users ON lessons.lecturer_id = users.id";
+$stmt = $conn->prepare($query);
+$stmt->execute();
+$lessons_result = $stmt->get_result();
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - BIDII School</title>
+    <script src="https://kit.fontawesome.com/4f5347b228.js" crossorigin="anonymous"></script>
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .description-overlay {
+            display: none;
+            position: absolute;
+            width: 250px;
+            height: auto;
+            background-color: rgba(0, 0, 0, 0.692);
+            margin-left: 0px;
+            margin-top: -50px;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            padding: 5px;
+            z-index: 100;
+            overflow-y: auto;
+        }
+        .lesson-card {
+            display: block;
+            margin-bottom: 15px;
+        }
+        .searchbox{
+            width: 35%;
+            margin-left: 63%;
+        }
+        .searchbox input{
+            
+        }
+    </style>
+</head>
+<body>
+    
+<?php include('header.php'); ?> 
+
+<div class="dashboard-container">    
+    <div class="cards">
+        <h2>Lessons</h2>
+        
+        <!-- Search Bar -->
+        <div class="searchbox">
+        <input type="text" id="searchInput" class="searchbox" placeholder="Search lessons..." style="border: solid 2px #1794a5;">
+        </div>
+
+        <?php if ($lessons_result->num_rows > 0) { 
+            while ($lesson = $lessons_result->fetch_assoc()) { ?>
+                <div class="card bg-info bg-gradient position-relative lesson-card">
+                    <div class="card-header">
+                        <strong class="lesson-title"><?php echo htmlspecialchars($lesson['title']); ?></strong>
+                    </div>
+                    <h5 class="description" data-full-description="<?php echo htmlspecialchars($lesson['description']); ?>">
+                        <?php echo htmlspecialchars(substr($lesson['description'], 0, 20)) . (strlen($lesson['description']) > 50 ? "..." : ""); ?>
+                    </h5>
+                    <div class="description-overlay"></div>
+                    <p><strong>Lecturer:</strong> <?php echo htmlspecialchars($lesson['lecturer_name']); ?></p>
+                    <p><strong>Enrollment Key:</strong> <?php echo htmlspecialchars($lesson['enrollment_key']); ?></p>
+                    
+                    <div class="att">
+                        <a href="view_attendance.php?lesson_id=<?php echo $lesson['lesson_id']; ?>" class="btn btn-primary view-attendance-btn">Attendance</a>
+                        <a href="view_enrollment.php?lesson_id=<?php echo $lesson['lesson_id']; ?>" class="btn btn-secondary view-enrollment-btn">Enrollment</a>
+                    </div>
+                </div>
+            <?php }
+        } else { ?>
+            <p>No lessons found. <a href="add_lesson.php"></a></p>
+        <?php } ?>
+    </div>
+   
+    <?php include('statistics.php'); ?>         
+</div>
+
+<script src="../assets/js/jquery-3.6.0.min.js"></script>
+<script>
+// JavaScript for handling overlay on hover
+$(document).ready(function() {
+    $('.description').hover(function() {
+        var fullDescription = $(this).data('full-description');
+        $(this).next('.description-overlay').html(fullDescription).show();
+    }, function() {
+        $(this).next('.description-overlay').hide();
+    });
+
+    // Dynamic search functionality
+    $('#searchInput').on('input', function() {
+        var searchText = $(this).val().toLowerCase();
+        $('.lesson-card').each(function() {
+            var lessonTitle = $(this).find('.lesson-title').text().toLowerCase();
+            if (lessonTitle.includes(searchText)) {
+                $(this).show();
+            } else {
+                $(this).hide();
+            }
+        });
+    });
+});
+</script>
+
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
+</body>
+</html>
