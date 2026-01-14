@@ -1,6 +1,6 @@
 <?php
 session_start();
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'admin') {
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'lecturer') {
     header("Location: login.php");
     exit();
 }
@@ -44,7 +44,6 @@ while ($student = mysqli_fetch_assoc($students_query)) {
     $attendance_percentage = ($total_lessons > 0) ? round(($total_attended / $total_lessons) * 100, 2) : 0;
 
     $students_data[] = [
-        'student_id' => $student['student_id'],
         'username' => $student['username'],
         'attendance_percentage' => $attendance_percentage,
         'total_lessons' => $total_lessons,
@@ -70,7 +69,6 @@ while ($student = mysqli_fetch_assoc($students_query)) {
         <table>
             <thead>
                 <tr>
-                    <th>Registration number</th>
                     <th>Student Name</th>
                     <th>Total Lessons</th>
                     <th>Lessons Attended</th>
@@ -80,7 +78,6 @@ while ($student = mysqli_fetch_assoc($students_query)) {
             <tbody>
                 <?php foreach ($students_data as $student) { ?>
                     <tr>
-                        <td><?php echo $student['student_id']; ?></td>
                         <td><?php echo $student['username']; ?></td>
                         <td><?php echo $student['total_lessons']; ?></td>
                         <td><?php echo $student['total_attended']; ?></td>

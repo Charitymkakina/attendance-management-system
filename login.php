@@ -1,4 +1,3 @@
-
 <?php
 session_start();  // Start the session to store user data upon successful login
 
@@ -10,7 +9,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     include('../config/db_connection.php');
 
     // Prepare SQL query to check if user exists with provided email
-    $stmt = $conn->prepare("SELECT id, username, password, role FROM users WHERE email = ? AND role = 'admin'");
+    $stmt = $conn->prepare("SELECT id, username, password, role FROM users WHERE email = ? AND role = 'lecturer'");
     $stmt->bind_param("s", $email); // Bind email parameter
     $stmt->execute();
 
@@ -52,7 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Login - BIDII School</title>
+    <title>Lecturer Login - BIDII School</title>
     <style>
         body {
     font-family: 'Poppins', sans-serif;
@@ -74,9 +73,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <div class="form-container card-white">
         <div class="card-header">
             <img src="../assets/images/logo2.png" alt="" style="max-width: 200px; height: auto; border-radius: 5px;">
-        <h2>Admin Login</h2> 
+        <h2>Lecturer Login</h2> 
         </div>
-        
         <?php if (isset($error)) { echo "<p class='error'>$error</p>"; } ?>
         <form action="login.php" method="POST">
             <label for="email">Email</label>
@@ -86,6 +84,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             <input type="password" name="password" id="password" required>
 
             <input type="submit" value="Login"></input>
+            
+            <p>Don't have an account? <a href="register.php">Register here</a></p>
+            <a href="../index.php">Go back</a>
         </form>
     </div>
 </body>

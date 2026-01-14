@@ -2,7 +2,7 @@
 session_start();
 
 // Ensure the user is a lecturer and is logged in
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'admin') {
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'lecturer') {
     header("Location: login.php");
     exit();
 }
@@ -18,9 +18,9 @@ if (!$stmt) {
     die("Error preparing the query: " . $conn->error);
 }
 
-$stmt->bind_param("i", $admin_id);
+$stmt->bind_param("i", $lecturer_id);
 $stmt->execute();
-$stmt->bind_result($admin_username);
+$stmt->bind_result($lecturer_username);
 $stmt->fetch();
 $stmt->close(); // Close after fetching the username
 
@@ -32,16 +32,16 @@ if (!isset($_GET['lesson_id']) || empty($_GET['lesson_id'])) {
 }
 
 $lesson_id = $_GET['lesson_id'];
-
+$lecturer_id = $_SESSION['user_id']; // Get the logged-in lecturer's ID for security
 
 // Prepare a SQL query to verify that the lesson belongs to the logged-in lecturer
-$query = "SELECT title FROM lessons WHERE lesson_id = ?";
+$query = "SELECT title FROM lessons WHERE lesson_id = ? AND lecturer_id = ?";
 $stmt = $conn->prepare($query);
-$stmt->bind_param("i", $lesson_id);
+$stmt->bind_param("ii", $lesson_id, $lecturer_id);
 $stmt->execute();
 $result = $stmt->get_result();
 
-// Check if the lesson exists
+// Check if the lesson exists and belongs to the lecturer
 if ($result->num_rows === 0) {
     echo "Lesson not found or you don't have permission to view this lesson.";
     exit();
@@ -53,7 +53,7 @@ $lesson_title = $lesson['title'];
 
 // Fetch enrolled students for this lesson
 $query = "
-    SELECT students.*
+    SELECT students.registration_number, students.username, students.email
     FROM enrollments
     JOIN students ON enrollments.student_id = students.registration_number
     WHERE enrollments.lesson_id = ?
@@ -85,9 +85,8 @@ $students_result = $stmt->get_result();
                 <thead>
                     <tr>
                         <th>Registration Number</th>
-                        <th>Student Name</th>
+                        <th>Username</th>
                         <th>Email</th>
-                        <th>Phone</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -96,7 +95,6 @@ $students_result = $stmt->get_result();
                             <td><?php echo htmlspecialchars($student['registration_number']); ?></td>
                             <td><?php echo htmlspecialchars($student['username']); ?></td>
                             <td><?php echo htmlspecialchars($student['email']); ?></td>
-                            <td><?php echo htmlspecialchars($student['phone']); ?></td>
                         </tr>
                     <?php } ?>
                 </tbody>
