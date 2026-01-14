@@ -1,46 +1,47 @@
 <?php
 session_start();
 
-// Ensure the user is a lecturer and is logged in
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'lecturer') {
+/// Ensure the user is a student and is logged in
+if (!isset($_SESSION['registration_number'])) {
     header("Location: login.php");
     exit();
 }
 
 // Include the database connection
 include('../config/db_connection.php');
-$lecturer_id = $_SESSION['user_id'];
+$student_id = $_SESSION['registration_number'];
 
-// Fetch lecturer details
-$query = "SELECT * FROM users WHERE id = ? AND role = 'lecturer'";
+// Fetch details
+$query = "SELECT * FROM students WHERE registration_number = ?";
 $stmt = $conn->prepare($query);
 
 if (!$stmt) {
     die("Error preparing the query: " . $conn->error);
 }
 
-$stmt->bind_param("i", $lecturer_id);
+$stmt->bind_param("i", $student_id);
 $stmt->execute();
 $result = $stmt->get_result();
-$lecturer = $result->fetch_assoc();
+$student = $result->fetch_assoc();
 $stmt->close();
 
-if (!$lecturer) {
-    die("Lecturer not found.");
+if (!$student) {
+    die("student not found.");
 }
 
 // Update profile
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $email = $_POST['email'];
-    $password = $_POST['password'];
-    $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+    $phone = $_POST['phone'];
+    $spassword = $_POST['password'];
+    $hashed_password = password_hash($spassword, PASSWORD_DEFAULT);
 
     // Update email and password in the database
-    $update_query = "UPDATE users SET email = ?, password = ? WHERE id = ? AND role = 'lecturer'";
+    $update_query = "UPDATE students SET email = ?, phone = ?, password = ? WHERE registration_number = ?";
     $update_stmt = $conn->prepare($update_query);
 
     if ($update_stmt) {
-        $update_stmt->bind_param("ssi", $email, $hashed_password, $lecturer_id);
+        $update_stmt->bind_param("sisi", $email, $phone, $hashed_password, $student_id);
         if ($update_stmt->execute()) {
             header("Location: profile.php"); // Reload after update
             exit();
@@ -70,12 +71,14 @@ $conn->close();
     <?php include('header.php'); ?> 
     <div class="dashboard-container">
         <div class="cards">
-            <h2>Lecturer Profile</h2>
+            <h2>Student Profile</h2>
             <?php if (isset($error)) { echo "<p class='error'>$error</p>"; } ?>
             <form action="profile.php" method="POST">
                 
                 <label for="email">Email</label>
-                <input type="email" name="email" id="email" value="<?php echo htmlspecialchars($lecturer['email']); ?>" required>
+                <input type="email" name="email" id="email" value="<?php echo htmlspecialchars($student['email']); ?>" required>
+                <label for="phone">Phone</label>
+                <input type="text" name="phone" id="phone" value="<?php echo htmlspecialchars($student['phone']); ?>" required>
 
                 <label for="password">New Password</label>
                 <input type="password" name="password" id="password" placeholder="Enter new password" required>

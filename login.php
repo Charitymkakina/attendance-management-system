@@ -2,42 +2,39 @@
 session_start();  // Start the session to store user data upon successful login
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $registration_number = $_POST['registration_number'];
     $email = $_POST['email'];
     $password = $_POST['password'];
 
     // Database connection
     include('../config/db_connection.php');
 
-    // Prepare SQL query to check if user exists with provided email
-    $stmt = $conn->prepare("SELECT id, username, password, role FROM users WHERE email = ? AND role = 'lecturer'");
-    $stmt->bind_param("s", $email); // Bind email parameter
+    // Prepare SQL query to check if student exists with the provided registration number and email
+    $stmt = $conn->prepare("SELECT registration_number, username, password FROM students WHERE registration_number = ? AND email = ?");
+    $stmt->bind_param("ss", $registration_number, $email); // Bind registration number and email parameters
     $stmt->execute();
 
     // Store result
     $stmt->store_result();
-    $stmt->bind_result($id, $username, $hashed_password, $role);
+    $stmt->bind_result($db_registration_number, $username, $hashed_password);
     $stmt->fetch();
 
-    // Debugging: Check the values fetched from the database
-    // echo "Fetched data: ID: $id, Username: $username, Password: $hashed_password, Role: $role";
-
-    // Check if user exists and password is correct
+    // Check if student exists and password is correct
     if ($stmt->num_rows > 0) {
         // Password verification
         if (password_verify($password, $hashed_password)) {
             // Successful login, store user data in session
-            $_SESSION['user_id'] = $id;
+            $_SESSION['registration_number'] = $db_registration_number;
             $_SESSION['username'] = $username;
-            $_SESSION['role'] = $role; // Store the user's role
 
-            // Redirect to the lecturer dashboard
+            // Redirect to the student dashboard
             header("Location: index.php");
             exit();
         } else {
             $error = "Invalid password!";
         }
     } else {
-        $error = "Invalid email or user not found!";
+        $error = "Invalid registration number, email, or student not found!";
     }
 
     // Close the statement and database connection
@@ -51,7 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lecturer Login - BIDII School</title>
+    <title>Student Login - BIDII School</title>
     <style>
         body {
     font-family: 'Poppins', sans-serif;
@@ -67,16 +64,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     <link rel="stylesheet" href="css/style.css">
     <link rel="icon" type="image/x-icon" href="../assets/images/fav.png">
-
 </head>
 <body>
-    <div class="form-container card-white">
+<div class="form-container card-white">
         <div class="card-header">
             <img src="../assets/images/logo2.png" alt="" style="max-width: 200px; height: auto; border-radius: 5px;">
-        <h2>Lecturer Login</h2> 
+        <h2>Student Login</h2> 
         </div>
         <?php if (isset($error)) { echo "<p class='error'>$error</p>"; } ?>
         <form action="login.php" method="POST">
+            <label for="registration_number">Registration Number</label>
+            <input type="text" name="registration_number" id="registration_number" required>
+
             <label for="email">Email</label>
             <input type="email" name="email" id="email" required>
 
@@ -84,7 +83,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             <input type="password" name="password" id="password" required>
 
             <input type="submit" value="Login"></input>
-            
             <p>Don't have an account? <a href="register.php">Register here</a></p>
             <a href="../index.php">Go back</a>
         </form>

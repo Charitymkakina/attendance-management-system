@@ -1,36 +1,23 @@
 <?php
 session_start();
 
-// Ensure the user is a lecturer and is logged in
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'lecturer') {
+// Ensure the user is a student and is logged in
+if (!isset($_SESSION['registration_number'])) {
     header("Location: login.php");
     exit();
 }
 
-// Fetching the lecturer's username based on user_id
+// Database connection
 include('../config/db_connection.php');
-$lecturer_id = $_SESSION['user_id'];
 
-// Secure SQL query to fetch the username for the logged-in lecturer
-$query = "SELECT username FROM users WHERE id = ?";
-$stmt = $conn->prepare($query);
+// Get logged-in student's registration number
+$studentId = $_SESSION['registration_number'];
 
-if (!$stmt) {
-    die("Error preparing the query: " . $conn->error);
-}
-
-$stmt->bind_param("i", $lecturer_id);
-$stmt->execute();
-$stmt->bind_result($lecturer_username);
-$stmt->fetch();
-$stmt->close(); // Close after fetching the username
-
-// Fetch lessons associated with the logged-in lecturer
-$query = "SELECT * FROM lessons WHERE lecturer_id = ?";
-$stmt = $conn->prepare($query);
-$stmt->bind_param("i", $lecturer_id);
-$stmt->execute();
-$lessons_result = $stmt->get_result();
+// Fetch all available lessons with lecturer names
+$query = "SELECT lessons.lesson_id, lessons.title, lessons.description, users.username AS lecturer_name 
+          FROM lessons 
+          JOIN users ON lessons.lecturer_id = users.id";
+$lessons_result = $conn->query($query);
 ?>
 
 <!DOCTYPE html>
@@ -38,25 +25,34 @@ $lessons_result = $stmt->get_result();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lecturer Dashboard - BIDII School</title>
-    <script src="https://kit.fontawesome.com/4f5347b228.js" crossorigin="anonymous"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    <title>Student Dashboard - BIDII School</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="css/style.css">
+    <script src="../assets/js/jquery-3.6.0.min.js"></script>
+
     <style>
-.description-overlay {
+        .description-overlay {
             display: none;
             position: absolute;
             width: 250px;
             height: auto;
             background-color: rgba(0, 0, 0, 0.692);
-            margin-left: 0px;
-            margin-top: -50px;
+            margin-left: -20px;
+            margin-top: -30px;
             color: #fff;
             border: none;
             border-radius: 5px;
             padding: 5px;
             z-index: 100;
             overflow-y: auto;
+        }
+        /* Circle and Checkmark animation */
+
+
+        .success-text {
+            margin-top: 20px;
+            font-size: 1.2em;
+            color: #333;
         }
         .lesson-card {
             display: block;
@@ -66,49 +62,109 @@ $lessons_result = $stmt->get_result();
             width: 35%;
             margin-left: 63%;
         }
+
     </style>
 </head>
 <body>
-    
-<?php include('header.php'); ?> 
+
+<?php include('header.php'); ?>
 
 <div class="dashboard-container">    
     <div class="cards">
-        <h2>Your Lessons</h2>
-        <!-- Search Bar -->
-        <div class="searchbox">
+        
+    <h2>Available Lessons</h2>
+    <!-- Search Bar -->
+    <div class="searchbox">
         <input type="text" id="searchInput" class="searchbox" placeholder="Search lessons..." style="border: solid 2px #1794a5;">
-        </div>
-        <?php if ($lessons_result->num_rows > 0) { 
-            while ($lesson = $lessons_result->fetch_assoc()) { ?>
-                <div class="card bg-info bg-gradient position-relative lesson-card">
+    </div>
+    <div class="row">
+        <?php while ($lesson = $lessons_result->fetch_assoc()) { 
+            $lessonId = $lesson['lesson_id'];
+            $isEnrolled = $conn->query("SELECT * FROM enrollments WHERE student_id = '$studentId' AND lesson_id = '$lessonId'")->num_rows > 0;
+        ?>
+            <div class="col-md-4">
+                <div class="card bg-info text-white mb-4 position-relative lesson-card">
                     <div class="card-header">
                         <strong class="lesson-title"><?php echo htmlspecialchars($lesson['title']); ?></strong>
                     </div>
-                    <p class="description" data-full-description="<?php echo htmlspecialchars($lesson['description']); ?>">
-                        <?php echo htmlspecialchars(substr($lesson['description'], 0, 20)) . (strlen($lesson['description']) > 50 ? "..." : ""); ?>
-                    </p>
-                    <div class="description-overlay"></div>
-                    <p><strong>Enrollment Key:</strong> <?php echo htmlspecialchars($lesson['enrollment_key']); ?></p>
-                    <div class="lesson-actions">
-                        <a href="edit_lesson.php?lesson_id=<?php echo $lesson['lesson_id']; ?>" class="edit-btn btn-warning"><i class="fas fa-pencil"></i></a>
-                        <a href="delete_lesson.php?lesson_id=<?php echo $lesson['lesson_id']; ?>" class="delete-btn btn-danger"><i class="fas fa-trash"></i></a>
-                    </div>
-                    <div class="att">
-                        <a href="view_attendance.php?lesson_id=<?php echo $lesson['lesson_id']; ?>" class="btn btn-primary view-attendance-btn">Attendance</a>
-                        <a href="view_enrollment.php?lesson_id=<?php echo $lesson['lesson_id']; ?>" class="btn btn-secondary view-enrollment-btn">Enrollment</a>
+                    <div class="card-body">
+                        <p class="description" data-full-description="<?php echo htmlspecialchars($lesson['description']); ?>">
+                            <?php echo htmlspecialchars(substr($lesson['description'], 0, 20)) . (strlen($lesson['description']) > 50 ? "..." : ""); ?>
+                        </p>
+                        <div class="description-overlay"></div>
+                        <p><strong>Lecturer:</strong> <?php echo htmlspecialchars($lesson['lecturer_name']); ?></p>
+                        <div class="text-center">
+                            <?php if ($isEnrolled) { ?>
+                                <div id="lesson-<?php echo $lessonId; ?>-status" class="mt-2">
+                                    <button class="btn btn-success mark-attendance-btn" data-lesson-id="<?php echo $lessonId; ?>">
+                                        Mark Attendance
+                                    </button>
+                                </div>
+                            <?php } else { ?>
+                                <button class="btn btn-primary enroll-btn" data-lesson-id="<?php echo $lessonId; ?>">
+                                    Enroll
+                                </button>
+                                <div id="lesson-<?php echo $lessonId; ?>-status" class="mt-2"></div>
+                            <?php } ?>
+                        </div>
                     </div>
                 </div>
-            <?php }
-        } else { ?>
-            <p>No lessons found. <a href="add_lesson.php">Create a new lesson</a></p>
+            </div>
         <?php } ?>
     </div>
-   
-    <?php include('statistics.php'); ?>         
 </div>
 
-<script src="../assets/js/jquery-3.7.1.min.js"></script>
+<!-- Enrollment Key Modal -->
+<div class="modal fade" id="enrollModal" tabindex="-1" role="dialog" aria-labelledby="enrollModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="enrollModalLabel">Enter Enrollment Key</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form id="enrollForm">
+                <div class="modal-body">
+                    <input type="hidden" name="lesson_id" id="lesson_id">
+                    <div class="form-group">
+                        <label for="enrollment_key">Enrollment Key</label>
+                        <input type="text" class="form-control" id="enrollment_key" name="enrollment_key" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Enroll</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Attendance Success Modal -->
+<div class="modal fade" id="attendanceSuccessModal" tabindex="-1" role="dialog" aria-labelledby="attendanceSuccessModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="attendanceSuccessModalLabel">Attendance Marked</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <!-- GIF for Circle and Tick -->
+                <div class="text-center">
+                    <img src="../assets/images/tick.gif" alt="Success" width="100" height="100"/>
+                </div>
+                <div class="success-text">Attendance marked successfully!</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<?php include('statistics.php'); ?>
+<script src="../assets/js/jquery-3.6.0.min.js"></script>
+
 <script>
 // JavaScript for handling overlay on hover
 $(document).ready(function() {
@@ -119,7 +175,7 @@ $(document).ready(function() {
         $(this).next('.description-overlay').hide();
     });
 
-        // Dynamic search functionality
+    // Dynamic search functionality
     $('#searchInput').on('input', function() {
         var searchText = $(this).val().toLowerCase();
         $('.lesson-card').each(function() {
@@ -131,9 +187,66 @@ $(document).ready(function() {
             }
         });
     });
+
+    // Open modal and set lesson ID for enrollment
+    $('.enroll-btn').click(function() {
+        const lessonId = $(this).data('lesson-id');
+        $('#lesson_id').val(lessonId);
+        $('#enrollModal').modal('show');
+    });
+
+    // Enrollment form submission
+    $('#enrollForm').submit(function(e) {
+        e.preventDefault();
+        
+        const lessonId = $('#lesson_id').val();
+        const enrollmentKey = $('#enrollment_key').val();
+        
+        // Send AJAX request to enroll
+        $.post("enroll.php", { lesson_id: lessonId, enrollment_key: enrollmentKey }, function(data) {
+            if (data === 'success') {
+                $('#enrollModal').modal('hide');
+                $(`#lesson-${lessonId}-status`).html('<p class="text-success">Enrolled</p>');
+                addAttendanceButtonListener(lessonId);
+                window.location.href = "index.php"; 
+            } else {
+                alert("Enrollment failed: " + data);
+            }
+        });
+    });
+    $('.mark-attendance-btn').click(function() {
+        const lessonId = $(this).data('lesson-id');
+        
+        $.post("mark_attendance.php", { lesson_id: lessonId }, function(data) {
+            if (data === 'success') {
+                // Show the modal
+                $('#attendanceSuccessModal').modal('show');
+                
+                // Update the lesson status after successful attendance
+                $(`#lesson-${lessonId}-status`).html('<p class="text-success">Attendance marked for today</p>');
+                
+                // Close the modal after 3 seconds (optional)
+                setTimeout(function() {
+                    $('#attendanceSuccessModal').modal('hide');
+                    window.location.href = 'index.php';
+                }, 1000);
+            } else {
+                alert("Failed to mark attendance: " + data);
+            }
+        });
+    });
+
+    // Function to handle Mark Attendance button clicks
+    function addAttendanceButtonListener(lessonId) {
+        $(`#lesson-${lessonId}-status`).html(`
+            <button class="btn btn-success mark-attendance-btn" data-lesson-id="${lessonId}">
+                Mark Attendance
+            </button>
+        `);
+    }
 });
 </script>
 
-<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
+<script src="../assets/bootstrap/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

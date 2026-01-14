@@ -11,12 +11,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $error = '';
 
     // Sanitize user inputs
+    $registration_number = trim($_POST['registration_number']);
     $username = trim($_POST['username']);
     $email = trim($_POST['email']);
+    $course = trim($_POST['course']);
     $password = trim($_POST['password']);
+    $phone = trim($_POST['phone']);
 
     // Validate the form inputs
-    if (empty($username) || empty($email) || empty($password)) {
+    if (empty($registration_number) || empty($username) || empty($email) || empty($course) || empty($password) || empty($phone)) {
         $error = "All fields are required!";
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $error = "Invalid email format!";
@@ -24,9 +27,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         // Hash the password securely
         $hashed_password = password_hash($password, PASSWORD_DEFAULT);
 
-        // Prepare SQL query to insert user into database
-        $stmt = $conn->prepare("INSERT INTO users (username, password, email, role) VALUES (?, ?, ?, 'lecturer')");
-        $stmt->bind_param("sss", $username, $hashed_password, $email);
+        // Prepare SQL query to insert student into database
+        $stmt = $conn->prepare("INSERT INTO students (registration_number, username, email, course, password, phone) VALUES (?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("ssssss", $registration_number, $username, $email, $course, $hashed_password, $phone);
 
         // Check if query executed successfully
         if ($stmt->execute()) {
@@ -51,7 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lecturer Registration - BIDII School</title>
+    <title>Student Registration - BIDII School</title>
     <style>
         body {
     font-family: 'Poppins', sans-serif;
@@ -72,7 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <div class="register-container card-white">
         <div class="card-header">
             <img src="../assets/images/logo2.png" alt="" style="max-width: 200px; height: auto; border-radius: 5px;">
-        <h2>Lecturer registration</h2> 
+        <h2>Student registration</h2> 
         </div>
 
         <?php
@@ -84,16 +87,25 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             unset($_SESSION['success_message']);
         }
         ?>
-     
+
         <form action="register.php" method="POST">
+            <label for="registration_number">Registration Number</label>
+            <input type="text" name="registration_number" id="registration_number" value="<?php echo isset($registration_number) ? htmlspecialchars($registration_number) : ''; ?>" required>
+
             <label for="username">Name</label>
             <input type="text" name="username" id="username" value="<?php echo isset($username) ? htmlspecialchars($username) : ''; ?>" required>
 
             <label for="email">Email</label>
             <input type="email" name="email" id="email" value="<?php echo isset($email) ? htmlspecialchars($email) : ''; ?>" required>
 
+            <label for="course">Course</label>
+            <input type="text" name="course" id="course" value="<?php echo isset($course) ? htmlspecialchars($course) : ''; ?>" required>
+
             <label for="password">Password</label>
             <input type="password" name="password" id="password" required>
+
+            <label for="phone">Phone</label>
+            <input type="text" name="phone" id="phone" value="<?php echo isset($phone) ? htmlspecialchars($phone) : ''; ?>" required>
 
             <input type="submit" value="Register"></input>
             <p>Already have an account? <a href="login.php">Login here</a></p>
